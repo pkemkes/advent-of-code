@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List
 
 
 def main():
@@ -7,20 +7,69 @@ def main():
 
     # #### Puzzle 1 #### #
 
-    gamma, epsilon = get_gamma_and_epsilon(input)
-    print("Power consumption:", gamma * epsilon)
+    print("Power consumption:", get_power_consumption(input))
+
+    # #### Puzzle 2 #### #
+
+    print("Life support rating:", get_life_supp_rating(input))
 
 
-def get_gamma_and_epsilon(bits: List[str]) -> Tuple[int, int]:
-    summed = [0] * len(bits[0])
-    for report in bits:
-        summed = [summed[i] + int(report[i]) for i in range(len(report))]
-    means = [s / len(bits) for s in summed]
-    gamma_list = [round(m) for m in means]
-    gamma = int("".join(map(str, gamma_list)), 2)
-    epsilon_list = [1 - g for g in gamma_list]
-    epsilon = int("".join(map(str, epsilon_list)), 2)
-    return gamma, epsilon
+def get_power_consumption(bits: List[str]) -> int:
+    most_common_bits = "".join([most_common_bit(i, bits)
+                                for i in range(len(bits[0]))])
+    least_common_bits = invert_bits(most_common_bits)
+    gamma = int(most_common_bits, 2)
+    epsilon = int(least_common_bits, 2)
+    return gamma * epsilon
+
+
+def get_life_supp_rating(bits: List[str]) -> int:
+    oxy_gen_rating = get_oxy_gen_rating(bits)
+    co2_scrub_rating = get_co2_scrub_rating(bits)
+    return oxy_gen_rating * co2_scrub_rating
+
+
+def invert_bits(bits: str) -> str:
+    return "".join(["1" if bit == "0" else "0" for bit in bits])
+
+
+def get_oxy_gen_rating(bits: List[str]) -> int:
+    result_bits = bits
+    pos = 0
+    while len(result_bits) > 1:
+        mcb = most_common_bit(pos, result_bits)
+        mcb = "1" if mcb == "=" else mcb
+        result_bits = [b for b in result_bits if b[pos] == mcb]
+        pos += 1
+    if len(result_bits) == 0:
+        raise Exception("Removed too many bits!")
+    return int(result_bits[0], 2)
+
+
+def get_co2_scrub_rating(bits: List[str]) -> int:
+    result_bits = bits
+    pos = 0
+    while len(result_bits) > 1:
+        mcb = most_common_bit(pos, result_bits)
+        lcb = "0" if mcb == "1" or mcb == "=" else "1"
+        result_bits = [b for b in result_bits if b[pos] == lcb]
+        pos += 1
+    if len(result_bits) == 0:
+        raise Exception("Removed too many bits!")
+    return int(result_bits[0], 2)
+
+
+def most_common_bit(pos: int, bits: List[str]) -> str:
+    ones = 0
+    zeros = 0
+    for bit_row in bits:
+        if bit_row[pos] == "1":
+            ones += 1
+        elif bit_row[pos] == "0":
+            zeros += 1
+        else:
+            raise Exception(f"Unknown bit {bit_row[pos]}")
+    return "1" if ones > zeros else "0" if zeros > ones else "="
 
 
 if __name__ == "__main__":
