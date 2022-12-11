@@ -5,7 +5,6 @@ def main():
     with open("input.txt") as f:
         input = [line.strip().split(" | ") for line in f.readlines()]
     input = split_and_sort(input)
-    write_to_file(input)
 
     # #### Puzzle 1 #### #
 
@@ -27,12 +26,6 @@ def split_and_sort(input: List[Tuple[str, str]])\
         right = ["".join(sorted(d)) for d in o.split(" ")]
         res.append((left, right))
     return res
-
-
-def write_to_file(a):
-    with open("sorted.txt", "w") as f:
-        for i, o in a:
-            f.write(" ".join(i) + " | " + " ".join(o) + "\n")
 
 
 def count_uniques(input: List[Tuple[str, str]]) -> int:
