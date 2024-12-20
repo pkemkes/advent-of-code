@@ -1,16 +1,24 @@
+from time import sleep
+
+
 Warehouse = list[list[str]]
 Coord = tuple[int, int]
 
-DIR_DICT = {
-    "v": ( 0,  1),
-    ">": ( 1,  0),
-    "^": ( 0, -1),
-    "<": (-1,  0)
-}
+
+def load_input() -> tuple[Warehouse, str]:
+    with open("input.txt") as f:
+        warehouse, moves = f.read().strip().split("\n\n")
+
+    warehouse = [
+        [c for c in l.strip()] 
+        for l in warehouse.strip().split("\n")
+    ]
+    moves = "".join(moves.strip().split("\n"))
+    return warehouse, moves
 
 
 def draw_warehouse(warehouse: Warehouse) -> str:
-    return "\n".join("".join(row) for row in warehouse)
+    return "\n".join("".join(row) for row in warehouse) + "\n"
 
 
 def find_bot(warehouse: Warehouse) -> Coord:
@@ -22,7 +30,7 @@ def find_bot(warehouse: Warehouse) -> Coord:
                 return (x, y)
     raise RuntimeError(
         "Could not find bot in warehouse:\n" + 
-        draw_warehouse()
+        draw_warehouse(warehouse)
     )
 
 
@@ -33,25 +41,46 @@ def is_in_warehouse(pos: Coord, warehouse: Warehouse) -> bool:
     return x >= 0 and y >= 0 and x < len_x and y < len_y
 
 
-def try_move(pos: Coord, dir: Coord, warehouse: Warehouse) -> bool:
+def can_be_moved(pos: Coord, dir: Coord, warehouse: Warehouse, from_box=False) -> bool:
     x, y = pos
-    field = warehouse[y][x]
     add_x, add_y = dir
     next_x, next_y = x+add_x, y+add_y
     if not is_in_warehouse((next_x, next_y), warehouse):
         return False
     next_field = warehouse[next_y][next_x]
+    if not from_box and dir[0] == 0:
+        if next_field == "[" and not can_be_moved((x+1, y), dir, warehouse, True):
+            return False
+        if next_field == "]" and not can_be_moved((x-1, y), dir, warehouse, True):
+            return False
     if next_field == "#":
         return False
-    if next_field == "O" and not try_move((next_x, next_y), dir, warehouse):
+    if next_field in ["O", "[", "]"] and not can_be_moved((next_x, next_y), dir, warehouse):
         return False
-    warehouse[next_y][next_x] = field
-    warehouse[y][x] = "."
     return True
 
 
-def move(pos: Coord, dir: Coord, warehouse: Warehouse) -> Coord:
-    if try_move(pos, dir, warehouse):
+def move(pos: Coord, dir: Coord, warehouse: Warehouse, from_box=False) -> None:
+    x, y = pos
+    field = warehouse[y][x]
+    add_x, add_y = dir
+    next_x, next_y = x+add_x, y+add_y
+    next_field = warehouse[next_y][next_x]
+    if not from_box and dir[0] == 0:
+        if next_field == "[":
+            move((x+1, y), dir, warehouse, True)
+        if next_field == "]":
+            move((x-1, y), dir, warehouse, True)
+    if next_field in ["O", "[", "]"]:
+        move((next_x, next_y), dir, warehouse)
+    if field == "@" or not from_box:
+        warehouse[next_y][next_x] = field
+        warehouse[y][x] = "."
+
+
+def try_move(pos: Coord, dir: Coord, warehouse: Warehouse) -> Coord:
+    if can_be_moved(pos, dir, warehouse):
+        move(pos, dir, warehouse)
         return pos[0] + dir[0], pos[1] + dir[1]
     return pos
 
@@ -67,28 +96,61 @@ def calc_box_gps_sum(warehouse: Warehouse) -> int:
     gps_sum = 0
     for y in range(len_y):
         for x in range(len_x):
-            if warehouse[y][x] == "O":
+            if warehouse[y][x] in ["O", "["]:
                 gps_sum += calc_gps((x, y))
     return gps_sum
 
 
-def main():
-    with open("input.txt") as f:
-        warehouse, moves = f.read().strip().split("\n\n")
+def expand(warehouse: Warehouse) -> Warehouse:
+    expand_dict = {
+        "#": ["#", "#"],
+        "O": ["[", "]"],
+        ".": [".", "."],
+        "@": ["@", "."]
+    }
+    expanded = [[] for _ in warehouse]
+    for i, row in enumerate(warehouse):
+        for c in row:
+            expanded[i] += expand_dict[c]
+    return expanded
 
-    warehouse = [
-        [c for c in l.strip()] 
-        for l in warehouse.strip().split("\n")
-    ]
-    moves = "".join(moves.strip().split("\n"))
+
+def main():
+    warehouse, moves = load_input()
+    print("Start:\n" + draw_warehouse(warehouse))
+
+    dir_dict = {
+        "v": ( 0,  1),
+        ">": ( 1,  0),
+        "^": ( 0, -1),
+        "<": (-1,  0)
+    }
 
     bot_pos = find_bot(warehouse)
-    for i, move_c in enumerate(moves):
-        dir = DIR_DICT[move_c]
-        bot_pos = move(bot_pos, dir, warehouse)
-    print(draw_warehouse(warehouse))
+    for move_c in moves:
+        dir = dir_dict[move_c]
+        bot_pos = try_move(bot_pos, dir, warehouse)
+        # print(draw_warehouse(warehouse))
+        # sleep(0.1)
+
+    print("End:\n" + draw_warehouse(warehouse))
 
     print("GPS sum of boxes:", calc_box_gps_sum(warehouse))
+
+    warehouse, moves = load_input()
+    warehouse = expand(warehouse)
+    print("Start:\n" + draw_warehouse(warehouse))
+
+    bot_pos = find_bot(warehouse)
+    for move_c in moves:
+        dir = dir_dict[move_c]
+        bot_pos = try_move(bot_pos, dir, warehouse)
+        # print(draw_warehouse(warehouse))
+        # sleep(0.1)
+
+    print("End:\n" + draw_warehouse(warehouse))
+
+    print("GPS sum of boxes in expanded warehouse:", calc_box_gps_sum(warehouse))
 
 
 if __name__ == "__main__":
